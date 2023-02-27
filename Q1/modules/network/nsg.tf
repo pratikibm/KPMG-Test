@@ -1,45 +1,4 @@
 locals {
-  /*
-  FROM 
-  {
-    test-public = {
-      sku                     = "standard"
-      allocation_method       = "Static"
-      idle_timeout_in_minutes = 5
-      ports_to_exposed_to_internet_on_nsg = {
-        test = {
-          exposed_ports = ["80", "443"]
-          priority      = 3000
-        }
-      }
-      ports_to_exposed_to_nuance_on_nsg = {}
-    },
-    test-office = {
-      sku                                 = "standard"
-      allocation_method                   = "Static"
-      idle_timeout_in_minutes             = 5
-      ports_to_exposed_to_internet_on_nsg = {}
-      ports_to_exposed_to_nuance_on_nsg = {
-        test = {
-          exposed_ports = ["80", "443"]
-          priority      = 3500
-        }
-      }
-    },
-  }
-
-  TO
-
-  {
-    test-public = {
-        test = {
-          exposed_ports = ["80", "443"]
-          priority      = 3000
-        }
-    },
-    test-office = {}
-  }
-  */
   public_ip_exposed_to_internet_nsg_rules = {
     for pip_name, pip_setting in var.public_ip_settings :
     pip_name => pip_setting.ports_to_exposed_to_internet_on_nsg
@@ -58,44 +17,7 @@ locals {
     }
   }
 
-  /*
-  FROM
-  {
-    test-public = {
-        test = {
-          exposed_ports = ["80", "443"]
-          priority      = 3000
-        }
-    },
-    test-office = {}
-  }
-  TO
-  [ 
-    {
-      test = [
-        {
-          name                                       = format("Allow-%s-From-Internet", pip_name)
-          description                                = "Allows access to public IP from Internet"
-          protocol                                   = "*"
-          source_port_range                          = "*"
-          source_port_ranges                         = []
-          destination_port_range                     = ""
-          destination_port_ranges                    = rule_settings.exposed_ports
-          source_address_prefix                      = "*"
-          source_address_prefixes                    = []
-          source_application_security_group_ids      = []
-          destination_address_prefix                 = azurerm_public_ip.pip[pip_name].ip_address
-          destination_address_prefixes               = []
-          destination_application_security_group_ids = []
-          access                                     = "Allow"
-          priority                                   = rule_settings.priority
-          direction                                  = "Inbound"
-        }
-      ]
-    }
-  ]
-  */
-
+  
   public_ip_internet_security_rules = flatten([
     for pip_name, ports_to_expose_by_nsg in local.public_ip_exposed_to_internet_nsg_rules : [
       for nsg_name, rule_settings in ports_to_expose_by_nsg : {
@@ -136,14 +58,14 @@ locals {
           priority      = 3000
         }
       }
-      ports_to_exposed_to_nuance_on_nsg = {}
+      ports_to_exposed_to_test_on_nsg = {}
     },
     test-office = {
       sku                                 = "standard"
       allocation_method                   = "Static"
       idle_timeout_in_minutes             = 5
       ports_to_exposed_to_internet_on_nsg = {}
-      ports_to_exposed_to_nuance_on_nsg = {
+      ports_to_exposed_to_test_on_nsg = {
         test = {
           exposed_ports = ["80", "443"]
           priority      = 3500
@@ -164,73 +86,36 @@ locals {
     }
   }
   */
-  public_ip_exposed_to_nuance_nsg_rules = {
+  public_ip_exposed_to_test_nsg_rules = {
     for pip_name, pip_setting in var.public_ip_settings :
-    pip_name => pip_setting.ports_to_exposed_to_nuance_on_nsg
-    if pip_setting.ports_to_exposed_to_nuance_on_nsg != {}
+    pip_name => pip_setting.ports_to_exposed_to_test_on_nsg
+    if pip_setting.ports_to_exposed_to_test_on_nsg != {}
   }
 
   # This local value isn't actually used.
   # However, if the condition !contains(keys(var.subnet_settings), k) is true, 
   # it will generate an Error: Invalid index,
   # Preventing us from creating public IPs who refer to non-existent NSG settings. 
-  public_ip_exposed_to_nuance_nsg_rules_validation = {
-    for k, v in local.public_ip_exposed_to_nuance_nsg_rules : k => {
+  public_ip_exposed_to_test_nsg_rules_validation = {
+    for k, v in local.public_ip_exposed_to_test_nsg_rules : k => {
       for k, x in v :
       k => var.nsg_settings[k]
       if !contains(keys(var.nsg_settings), k)
     }
   }
 
-  /*
-  FROM
-  {
-    test-public = {},
-    test-office = {
-      test = {
-          exposed_ports = ["80", "443"]
-          priority      = 3500
-        }
-    }
-  }
-  TO
-  [ 
-    {
-      test = [
-        {
-          name                                       = format("Allow-%s-From-Nuance-Offices", pip_name)
-          description                                = format("Allows access to public IP from Nuance Offices")
-          protocol                                   = "*"
-          source_port_range                          = "*"
-          source_port_ranges                         = []
-          destination_port_range                     = ""
-          destination_port_ranges                    = rule_settings.exposed_ports
-          source_address_prefix                      = "*"
-          source_address_prefixes                    = values(var.nuance_office_outbound_ips)
-          source_application_security_group_ids      = []
-          destination_address_prefix                 = azurerm_public_ip.pip[pip_name].ip_address
-          destination_address_prefixes               = []
-          destination_application_security_group_ids = []
-          access                                     = "Allow"
-          priority                                   = rule_settings.priority
-          direction                                  = "Inbound"
-        }
-      ]
-    }
-  ]
-  */
-  public_ip_nuance_office_security_rules = flatten([
-    for pip_name, ports_to_expose_by_nsg in local.public_ip_exposed_to_nuance_nsg_rules : [
+  public_ip_test_office_security_rules = flatten([
+    for pip_name, ports_to_expose_by_nsg in local.public_ip_exposed_to_test_nsg_rules : [
       for nsg_name, rule_settings in ports_to_expose_by_nsg : {
         "${nsg_name}" = [
           {
-            name                       = format("Allow-%s-From-Nuance-Offices", pip_name)
-            description                = format("Allows access to public IP from Nuance Offices")
+            name                       = format("Allow-%s-From-test-Offices", pip_name)
+            description                = format("Allows access to public IP from test Offices")
             protocol                   = "*"
             source_port_range          = "*"
             destination_port_ranges    = rule_settings.exposed_ports
             source_address_prefix      = "*"
-            source_address_prefixes    = values(var.nuance_office_outbound_ips)
+            source_address_prefixes    = values(var.test_office_outbound_ips)
             destination_address_prefix = azurerm_public_ip.pip[pip_name].ip_address
             access                     = "Allow"
             priority                   = rule_settings.priority
@@ -293,7 +178,7 @@ resource "azurerm_network_security_group" "nsg" {
     for_each = concat(
       each.value.rules,
       flatten([for rules in local.public_ip_internet_security_rules : rules[each.key] if contains(keys(rules), each.key)]),
-      flatten([for rules in local.public_ip_nuance_office_security_rules : rules[each.key] if contains(keys(rules), each.key)]),
+      flatten([for rules in local.public_ip_test_office_security_rules : rules[each.key] if contains(keys(rules), each.key)]),
       flatten([for rule in local.public_ip_additional_nsg_rules : rule if contains(rule.subnets, each.key)]),
     )
     content {

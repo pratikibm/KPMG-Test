@@ -288,7 +288,7 @@ variable "firewall_rules" {
       end_ip=string = the IP at the end of the allowed IP range
     Example:
     {
-      nuance = {
+      test = {
         start_ip  = "1.1.1.1"
         end_ip    = "2.2.2.2"
       },

@@ -286,7 +286,7 @@ variable "public_ip_settings" {
       exposed_ports = list(string)
       priority      = number
     }))
-    ports_to_exposed_to_nuance_on_nsg = map(object({
+    ports_to_exposed_to_test_on_nsg = map(object({
       exposed_ports = list(string)
       priority      = number
     }))
@@ -321,18 +321,18 @@ variable "public_ip_settings" {
       - (Required) allocation_method: Defines the allocation method for this IP address. Possible values are Static or Dynamic.
       - (Required) idle_timeout_in_minutes: Specifies the timeout for the TCP idle connection. The value can be set between 4 and 30 minutes.
       - (Required) ports_to_exposed_to_internet_on_nsg: Map with key matching the subnet name and value for setting a list of ports to exposed on the internet and the priority of the rule.
-      - (Required) ports_to_exposed_to_nuance_on_nsg: Map with key matching the subnet name and value for setting a list of ports to exposed on the nuance office and the priority of the rule.
+      - (Required) ports_to_exposed_to_test_on_nsg: Map with key matching the subnet name and value for setting a list of ports to exposed on the test office and the priority of the rule.
       - (Optional) additional_nsg_rules: Map of extre NSG rules to be added to the subnets specified in the body, for the IP that will be created. See definition for the actual properties.
       - (Optional) zones: A collection containing the availability zone to allocate the Public IP in. Possible values ["1"], ["2"], ["3"], ["1","2","3"] and null. Default is not zone-redundant.
                           Availability Zones are only supported with a Standard SKU and in select regions at this time. Standard SKU Public IP Addresses that do not specify a zone are not zone-redundant by default.
   Example:
     public_ip_settings = {
-      gatekeeper-web = {
+      web = {
         sku                     = "standard"
         allocation_method       = "Static"
         idle_timeout_in_minutes = 5
         ports_to_exposed_to_internet_on_nsg = {}
-        ports_to_exposed_to_nuance_on_nsg = {}
+        ports_to_exposed_to_test_on_nsg = {}
       },
       global-auth = {
         sku                     = "standard"
@@ -345,7 +345,7 @@ variable "public_ip_settings" {
             priority = 1000
           }
         }
-        ports_to_exposed_to_nuance_on_nsg = {
+        ports_to_exposed_to_test_on_nsg = {
           test-vnet = {
             exposed_ports = ["80","443"]
             priority = 2000
@@ -421,14 +421,14 @@ variable "nat_rule_collections" {
           - (Required) protocols: A list of protocols. Possible values are Any, ICMP, TCP and UDP. If action is Dnat, protocols can only be TCP and UDP.
   Example:
     nat_rule_collections = {
-      gatekeeper = {
+      test = {
         priority = 100
         action   = "Dnat"
         rules = {
-          gatekeeper-dev = {
+          dev = {
             source_addresses      = ["*"]
             destination_ports     = ["443"]
-            destination_addresses = [azurerm_public_ip.firewall_pips["gatekeeper-dev"].ip_address]
+            destination_addresses = [azurerm_public_ip.firewall_pips["test-dev"].ip_address]
             translated_address    = "10.58.160.195"
             translated_port       = "443"
             protocols             = ["TCP"]
@@ -471,7 +471,7 @@ variable "network_rule_collections" {
         priority = 100
         action   = "Allow"
         rules = {
-          gatekeeper-lambda-vpc = {
+          test-lambda-vpc = {
             source_addresses      = ["52.7.83.40"]
             destination_ports     = ["443"]
             destination_addresses = ["10.58.128.0/17"]
@@ -481,28 +481,6 @@ variable "network_rule_collections" {
       }
     }
 EOS
-}
-
-variable "nuance_office_outbound_ips" {
-  type        = map(string)
-  description = "List of Nuance Outbound IPs"
-  default = {
-    Aachen        = "46.183.102.26"
-    Burlington    = "199.4.160.10"
-    Germany       = "5.145.131.136"
-    Italy         = "212.31.238.205"
-    Mahwah        = "65.51.46.226"
-    Montreal      = "192.40.239.178"
-    Paris         = "62.23.113.6"
-    Pune          = "182.74.39.237"
-    Somerville    = "63.116.138.11"
-    IsraelDC      = "82.80.207.4"
-    IsraelOffice  = "87.71.159.22"
-    IsraelOffice2 = "37.142.14.30"
-    Seattle       = "74.203.58.130"
-    Melbourne     = "208.51.96.2"
-    AgouraHills   = "12.232.165.4"
-  }
 }
 
 variable "log_analytics_workspace_id" {
@@ -615,7 +593,7 @@ variable "private_dns_zones" {
   default     = []
   description = <<EOS
     Domain of the private dns zones to create and link to the vnet created in this module.
-    Single labeled private DNS zones are not supported. Your private DNS zone must have two or more labels. For example nuance.com has two labels separated by a dot. A private DNS zone can have a maximum 34 labels.
+    Single labeled private DNS zones are not supported. Your private DNS zone must have two or more labels. For example test.com has two labels separated by a dot. A private DNS zone can have a maximum 34 labels.
     For example:
       [ "my-dns.com", "my-domain.net" ]
 EOS
